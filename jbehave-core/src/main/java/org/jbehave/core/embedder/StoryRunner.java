@@ -224,39 +224,39 @@ public class StoryRunner {
      */
     public boolean hasRestartingStoryException(Throwable cause)
     {
-    	while(cause != null) {
-			if (cause instanceof RestartingStoryFailure) {
-				return true;
-			}
-			cause = cause.getCause();
-    	}
-    	return false;
+        while(cause != null) {
+            if (cause instanceof RestartingStoryFailure) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     private void run(RunContext context, Story story, Map<String, String> storyParameters) throws Throwable {
 
-    	boolean restartingStory = false;
-    	
-    	try {
+        boolean restartingStory = false;
+        
+        try {
             runCancellable(context, story, storyParameters);
         } catch (Throwable e) {
-        	
-			
-        	if (cancelledStories.containsKey(story)) {
-        		reporter.get().storyCancelled(story, cancelledStories.get(story));
-        		reporter.get().afterScenario();
-        		reporter.get().afterStory(context.givenStory);
-        	}
-        	
-			// Restart entire story if determined it needs it
-			if (hasRestartingStoryException(e) || hasRestartingStoryException(beforeAfterStoryFailure.get())) {
-				//this is not getting logged when running in multi-threaded mode
-				reporter.get().restartedStory(story, e);
-				restartingStory = true;
-				run(context, story, storyParameters);
-			} else {
-				throw e;
-			}
+            
+            
+            if (cancelledStories.containsKey(story)) {
+                reporter.get().storyCancelled(story, cancelledStories.get(story));
+                reporter.get().afterScenario();
+                reporter.get().afterStory(context.givenStory);
+            }
+            
+            // Restart entire story if determined it needs it
+            if (hasRestartingStoryException(e) || hasRestartingStoryException(beforeAfterStoryFailure.get())) {
+                //this is not getting logged when running in multi-threaded mode
+                reporter.get().restartedStory(story, e);
+                restartingStory = true;
+                run(context, story, storyParameters);
+            } else {
+                throw e;
+            }
 
         }finally {
             if (!context.givenStory() && reporter.get() instanceof ConcurrentStoryReporter && !restartingStory) {
@@ -454,12 +454,12 @@ public class StoryRunner {
             throws Throwable {
         ExamplesTable table = scenario.getExamplesTable();
         reporter.get().beforeExamples(scenario.getSteps(), table);
-    	Keywords keywords = context.configuration().keywords();
+        Keywords keywords = context.configuration().keywords();
         for (Map<String, String> scenarioParameters : table.getRows()) {
-			Meta parameterMeta = parameterMeta(keywords, scenarioParameters);
-			if ( !parameterMeta.isEmpty() && !context.filter.allow(parameterMeta) ){
-				continue;
-			}
+            Meta parameterMeta = parameterMeta(keywords, scenarioParameters);
+            if ( !parameterMeta.isEmpty() && !context.filter.allow(parameterMeta) ){
+                continue;
+            }
             reporter.get().example(scenarioParameters);
             if (context.configuration().storyControls().resetStateBeforeScenario()) {
                 context.resetState();
@@ -482,15 +482,15 @@ public class StoryRunner {
     }
 
     private Meta parameterMeta(Keywords keywords,
-			Map<String, String> scenarioParameters) {
-		String meta = keywords.meta();
-		if (scenarioParameters.containsKey(meta)) {
-			return Meta.createMeta(scenarioParameters.get(meta), keywords);
-		}
-		return Meta.EMPTY;
-	}
+            Map<String, String> scenarioParameters) {
+        String meta = keywords.meta();
+        if (scenarioParameters.containsKey(meta)) {
+            return Meta.createMeta(scenarioParameters.get(meta), keywords);
+        }
+        return Meta.EMPTY;
+    }
 
-	private void runBeforeOrAfterStorySteps(RunContext context, Story story, Stage stage) throws InterruptedException {
+    private void runBeforeOrAfterStorySteps(RunContext context, Story story, Stage stage) throws InterruptedException {
         runStepsWhileKeepingState(context, context.collectBeforeOrAfterStorySteps(story, stage));
     }
 
@@ -604,10 +604,10 @@ public class StoryRunner {
             StepResult result = step.doNotPerform(scenarioFailure);
             result.describeTo(reporter.get());
             
-			if (result.getFailure() != null) {
-				//persist failures to see if we need to restart the story
-				beforeAfterStoryFailure.set(result.getFailure());
-			}
+            if (result.getFailure() != null) {
+                //persist failures to see if we need to restart the story
+                beforeAfterStoryFailure.set(result.getFailure());
+            }
             
             return this;
         }
@@ -627,8 +627,8 @@ public class StoryRunner {
         private final String path;
         private final MetaFilter filter;
         private final boolean givenStory;
-		private State state;
-		private RunContext parentContext;
+        private State state;
+        private RunContext parentContext;
 
         public RunContext(Configuration configuration, InjectableStepsFactory stepsFactory, String path,
                 MetaFilter filter) {
@@ -646,7 +646,7 @@ public class StoryRunner {
             this.path = path;
             this.filter = filter;
             this.givenStory = givenStory;
-			this.parentContext = parentContext;
+            this.parentContext = parentContext;
             resetState();
         }
 
@@ -716,7 +716,7 @@ public class StoryRunner {
         public void stateIs(State state) {
             this.state = state;
             if ( parentContext != null ){
-            	parentContext.stateIs(state);
+                parentContext.stateIs(state);
             }
         }
 

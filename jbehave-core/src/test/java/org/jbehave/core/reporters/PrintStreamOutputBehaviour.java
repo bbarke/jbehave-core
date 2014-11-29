@@ -76,7 +76,7 @@ public class PrintStreamOutputBehaviour {
                 + "When I write special chars in parameter <>&\"\n"
                 + "When I write two parameters ,,, and &&&\n"
                 + "Then I should... - try again (hi)\n"
-                + "/path/to/story (Restarted Story)\n"
+                + "Restarted: /path/to/story (Restarted Story)\n"
                 + "STORY CANCELLED (DURATION 2 s)\n"
                 + "Then I should have a balance of $30 (PENDING)\n"
                 + "Then I should have $20 (NOT PERFORMED)\n"

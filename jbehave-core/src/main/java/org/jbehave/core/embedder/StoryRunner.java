@@ -50,7 +50,8 @@ public class StoryRunner {
     private ThreadLocal<FailureStrategy> failureStrategy = new ThreadLocal<FailureStrategy>();
     private ThreadLocal<PendingStepStrategy> pendingStepStrategy = new ThreadLocal<PendingStepStrategy>();
     private ThreadLocal<UUIDExceptionWrapper> storyFailure = new ThreadLocal<UUIDExceptionWrapper>();
-    private ThreadLocal<UUIDExceptionWrapper> beforeAfterStoryFailure = new ThreadLocal<UUIDExceptionWrapper>();
+    private ThreadLocal<UUIDExceptionWrapper> somethingHappenedFailure = new ThreadLocal<UUIDExceptionWrapper>();
+    private ThreadLocal<Integer> storyRestartDepth = new ThreadLocal<Integer>();
     private ThreadLocal<StoryReporter> reporter = new ThreadLocal<StoryReporter>();
     private ThreadLocal<String> reporterStoryPath = new ThreadLocal<String>();
     private ThreadLocal<State> storiesState = new ThreadLocal<State>();
@@ -222,7 +223,7 @@ public class StoryRunner {
      * @param cause - the stacktrace to check for {@link RestartingStoryFailure}
      * @return true if found, false otherwise
      */
-    public boolean hasRestartingStoryException(Throwable cause)
+    public boolean restartStory(Throwable cause)
     {
         while(cause != null) {
             if (cause instanceof RestartingStoryFailure) {
@@ -232,13 +233,39 @@ public class StoryRunner {
         }
         return false;
     }
-
+    
+    /**
+     * Restarts the story, reporting what happened
+     * @param context
+     * @param story
+     * @param storyParameters
+     * @throws Throwable
+     */
+    private void executeStoryRestart(Throwable cause, RunContext context, Story story, Map<String, String> storyParameters) 
+            throws Throwable
+    {
+        storyRestartDepth.set(storyRestartDepth.get() + 1);
+        try {
+        run(context, story, storyParameters);
+        } finally {
+            storyRestartDepth.set(storyRestartDepth.get() - 1);
+            reporter.get().restartedStory(story, cause);
+        }
+    }
+    
     private void run(RunContext context, Story story, Map<String, String> storyParameters) throws Throwable {
-
-        boolean restartingStory = false;
         
+        if(storyRestartDepth.get() == null) {
+            storyRestartDepth.set(0);
+        }
         try {
             runCancellable(context, story, storyParameters);
+            
+            //stories with a pending step does not throw an exception like the others
+            if(restartStory(somethingHappenedFailure.get())) {
+                executeStoryRestart(somethingHappenedFailure.get(), context, story, storyParameters);
+            }
+            
         } catch (Throwable e) {
             
             
@@ -248,18 +275,18 @@ public class StoryRunner {
                 reporter.get().afterStory(context.givenStory);
             }
             
-            // Restart entire story if determined it needs it
-            if (hasRestartingStoryException(e) || hasRestartingStoryException(beforeAfterStoryFailure.get())) {
-                //this is not getting logged when running in multi-threaded mode
-                reporter.get().restartedStory(story, e);
-                restartingStory = true;
-                run(context, story, storyParameters);
-            } else {
+            //do else if statement, to report the correct failure stacktrace 
+            if(restartStory(e)) {
+                executeStoryRestart(e, context, story, storyParameters);
+            } else if(restartStory(somethingHappenedFailure.get())) {
+                executeStoryRestart(somethingHappenedFailure.get(), context, story, storyParameters);
+            }
+            else{
                 throw e;
             }
 
         }finally {
-            if (!context.givenStory() && reporter.get() instanceof ConcurrentStoryReporter && !restartingStory) {
+            if (!context.givenStory() && reporter.get() instanceof ConcurrentStoryReporter && storyRestartDepth.get() == 0) {
                 ((ConcurrentStoryReporter) reporter.get()).invokeDelayed();
             }
         }
@@ -314,6 +341,12 @@ public class StoryRunner {
                 if (failureOccurred(context) && context.configuration().storyControls().skipScenariosAfterFailure()) {
                     continue;
                 }
+                
+                //don't continue if received the signal to restart the story
+                if(failureOccurred(context) && restartStory(somethingHappenedFailure.get())) {
+                    continue;
+                }
+                
                 reporter.get().beforeScenario(scenario.getTitle());
                 reporter.get().scenarioMeta(scenario.getMeta());
 
@@ -406,7 +439,7 @@ public class StoryRunner {
         }
         currentStrategy.set(context.configuration().failureStrategy());
         storyFailure.set(null);
-        beforeAfterStoryFailure.set(null);
+        somethingHappenedFailure.set(null);
     }
 
     private void runGivenStories(GivenStories givenStories, Map<String, String> parameters, RunContext context) throws Throwable {
@@ -460,6 +493,12 @@ public class StoryRunner {
             if ( !parameterMeta.isEmpty() && !context.filter.allow(parameterMeta) ){
                 continue;
             }
+            
+            //don't finish the examples if the story is going to be restarted
+            if(failureOccurred(context) && restartStory(somethingHappenedFailure.get())) {
+                continue;
+            }
+            
             reporter.get().example(scenarioParameters);
             if (context.configuration().storyControls().resetStateBeforeScenario()) {
                 context.resetState();
@@ -605,8 +644,8 @@ public class StoryRunner {
             result.describeTo(reporter.get());
             
             if (result.getFailure() != null) {
-                //persist failures to see if we need to restart the story
-                beforeAfterStoryFailure.set(result.getFailure());
+              //persist failures to see if we need to restart the story
+              somethingHappenedFailure.set(result.getFailure());
             }
             
             return this;

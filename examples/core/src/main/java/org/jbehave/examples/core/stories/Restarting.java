@@ -9,7 +9,7 @@ public class Restarting extends CoreStory {
 
 	@Override
 	public InjectableStepsFactory stepsFactory() {
-		return new InstanceStepsFactory(configuration(), new RestartingSteps());
+		return new InstanceStepsFactory(configuration(), new RestartingSteps(), new RestartingBeforeAfterScenario());
 	}
 
 }
